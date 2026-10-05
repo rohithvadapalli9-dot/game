@@ -1,0 +1,1054 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MANALO OKKADU - One of us is different</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg: '#09090F',
+            surface: '#13131F',
+            primary: '#7C3AED',
+            secondary: '#2563EB',
+            imposter: '#EF4444',
+            success: '#22C55E',
+            warning: '#F59E0B',
+            text: '#F8FAFC',
+            muted: '#94A3B8',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+    * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
+    body { background-color: #09090F; color: #F8FAFC; overflow-x: hidden; }
+    .glass { background: rgba(255,255,255,0.04); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
+    .glass-strong { background: rgba(255,255,255,0.07); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.12); }
+    .glass-hover:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); }
+    .glow-primary { box-shadow: 0 0 20px rgba(124,58,237,0.4), 0 0 60px rgba(124,58,237,0.1); }
+    .glow-imposter { box-shadow: 0 0 20px rgba(239,68,68,0.4), 0 0 60px rgba(239,68,68,0.1); }
+    .glow-success { box-shadow: 0 0 20px rgba(34,197,94,0.4), 0 0 60px rgba(34,197,94,0.1); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 20px rgba(124,58,237,0.4); } 50% { box-shadow: 0 0 40px rgba(124,58,237,0.7); } }
+    @keyframes shake { 0%,100% { transform: translateX(0); } 10%,30%,50%,70%,90% { transform: translateX(-4px); } 20%,40%,60%,80% { transform: translateX(4px); } }
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    @keyframes confetti { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+    @keyframes revealWord { 0% { transform: scale(0.5) rotateY(90deg); opacity: 0; } 100% { transform: scale(1) rotateY(0deg); opacity: 1; } }
+    .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+    .animate-scale-in { animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    .animate-slide-up { animation: slideUp 0.6s ease-out forwards; }
+    .animate-pulse-glow { animation: pulseGlow 2s infinite; }
+    .animate-float { animation: float 3s ease-in-out infinite; }
+    .animate-reveal { animation: revealWord 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #09090F; }
+    ::-webkit-scrollbar-thumb { background: #7C3AED; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #8B5CF6; }
+    .chat-scroll { scroll-behavior: smooth; }
+  </style>
+</head>
+<body class="bg-bg min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } = React;
+
+    // ─── CONSTANTS ────────────────────────────────────────────
+    const SYMBOLS = ['⭐','🔥','💎','🌟','🎯','🚀','🎨','🎭','🎪','🎰','🎲','🎳','🎮','🧩','🎪','🎭','🎨','🎯','🔥','💎'];
+    const WORD_PAIRS = [
+      { category: 'Food', commonWord: 'Pizza', imposterWord: 'Burger' },
+      { category: 'Food', commonWord: 'Tea', imposterWord: 'Coffee' },
+      { category: 'Food', commonWord: 'Sushi', imposterWord: 'Ramen' },
+      { category: 'Food', commonWord: 'Bread', imposterWord: 'Toast' },
+      { category: 'Food', commonWord: 'Ice Cream', imposterWord: 'Frozen Yogurt' },
+      { category: 'Food', commonWord: 'Pasta', imposterWord: 'Noodles' },
+      { category: 'Animals', commonWord: 'Cat', imposterWord: 'Tiger' },
+      { category: 'Animals', commonWord: 'Dog', imposterWord: 'Wolf' },
+      { category: 'Animals', commonWord: 'Fish', imposterWord: 'Shark' },
+      { category: 'Animals', commonWord: 'Bird', imposterWord: 'Eagle' },
+      { category: 'Animals', commonWord: 'Horse', imposterWord: 'Unicorn' },
+      { category: 'Places', commonWord: 'Beach', imposterWord: 'Desert' },
+      { category: 'Places', commonWord: 'City', imposterWord: 'Town' },
+      { category: 'Places', commonWord: 'Forest', imposterWord: 'Jungle' },
+      { category: 'Places', commonWord: 'Mountain', imposterWord: 'Hill' },
+      { category: 'Movies', commonWord: 'Titanic', imposterWord: 'Poseidon' },
+      { category: 'Movies', commonWord: 'Batman', imposterWord: 'Ironman' },
+      { category: 'Movies', commonWord: 'Harry Potter', imposterWord: 'Lord of the Rings' },
+      { category: 'Sports', commonWord: 'Soccer', imposterWord: 'Rugby' },
+      { category: 'Sports', commonWord: 'Tennis', imposterWord: 'Badminton' },
+      { category: 'Sports', commonWord: 'Basketball', imposterWord: 'Volleyball' },
+      { category: 'Jobs', commonWord: 'Doctor', imposterWord: 'Nurse' },
+      { category: 'Jobs', commonWord: 'Teacher', imposterWord: 'Professor' },
+      { category: 'Jobs', commonWord: 'Pilot', imposterWord: 'Captain' },
+      { category: 'Objects', commonWord: 'Phone', imposterWord: 'Tablet' },
+      { category: 'Objects', commonWord: 'Chair', imposterWord: 'Stool' },
+      { category: 'Objects', commonWord: 'Lamp', imposterWord: 'Lantern' },
+      { category: 'Vehicles', commonWord: 'Car', imposterWord: 'Truck' },
+      { category: 'Vehicles', commonWord: 'Bike', imposterWord: 'Motorcycle' },
+      { category: 'Vehicles', commonWord: 'Boat', imposterWord: 'Ship' },
+      { category: 'Fruits', commonWord: 'Apple', imposterWord: 'Orange' },
+      { category: 'Fruits', commonWord: 'Grape', imposterWord: 'Berry' },
+      { category: 'Fruits', commonWord: 'Mango', imposterWord: 'Papaya' },
+      { category: 'Festivals', commonWord: 'Diwali', imposterWord: 'Holi' },
+      { category: 'Festivals', commonWord: 'Christmas', imposterWord: 'Easter' },
+      { category: 'Festivals', commonWord: 'New Year', imposterWord: 'Halloween' },
+    ];
+
+    const PHASE = {
+      HOME: 'HOME',
+      CREATE: 'CREATE',
+      JOIN: 'JOIN',
+      LOBBY: 'LOBBY',
+      WORD_REVEAL: 'WORD_REVEAL',
+      DISCUSSION: 'DISCUSSION',
+      VOTING: 'VOTING',
+      RESULT: 'RESULT',
+      FINISHED: 'FINISHED',
+    };
+
+    const PLAYER_COLORS = [
+      'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500',
+      'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500',
+      'bg-orange-500', 'bg-cyan-500', 'bg-rose-500', 'bg-lime-500',
+    ];
+
+    // ─── UTILITIES ────────────────────────────────────────────
+    function generateRoomCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      return code;
+    }
+
+    function getSymbol(index) {
+      return SYMBOLS[index % SYMBOLS.length];
+    }
+
+    function getColor(index) {
+      return PLAYER_COLORS[index % PLAYER_COLORS.length];
+    }
+
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function getJoinUrl(code) {
+      const base = typeof window !== 'undefined' ? window.location.origin : '';
+      return `${base}/join/${code}`;
+    }
+
+    // ─── ICONS ────────────────────────────────────────────────
+    const Icons = {
+      Copy: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>,
+      Share: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.5 9 12c0-.5-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 111.024 5.435l-6.632 3.316m6.632-6.632l6.632-3.316" /></svg>,
+      Check: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>,
+      X: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>,
+      Users: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 014 4V6h1.5a2.5 2.5 0 012.5 2.5v11a2.5 2.5 0 01-2.5 2.5h-13A2.5 2.5 0 013.5 19.5v-11A2.5 2.5 0 016 6H7.5v-.354a4 4 0 014-4z" /></svg>,
+      Message: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>,
+      Send: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>,
+      Clock: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+      Trophy: () => <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v18l7-4 7 4V3H5zm12 4h2v2h-2V7zm-4 0h2v2h-2V7zm-4 0h2v2h-2V7z" /></svg>,
+      Crown: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l3.5 4L12 3l3.5 4L19 3v15a2 2 0 01-2 2H7a2 2 0 01-2-2V3z" /></svg>,
+      Link: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>,
+      Play: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+      Info: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    };
+
+    // ─── UI COMPONENTS ────────────────────────────────────────
+    const Button = ({ children, variant = 'primary', size = 'md', className = '', disabled = false, onClick, type = 'button' }) => {
+      const base = 'font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed';
+      const variants = {
+        primary: 'bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/25',
+        secondary: 'bg-secondary hover:bg-secondary/90 text-white shadow-lg shadow-secondary/25',
+        imposter: 'bg-imposter hover:bg-imposter/90 text-white shadow-lg shadow-imposter/25',
+        success: 'bg-success hover:bg-success/90 text-white shadow-lg shadow-success/25',
+        warning: 'bg-warning hover:bg-warning/90 text-white shadow-lg shadow-warning/25',
+        outline: 'border border-white/20 hover:bg-white/5 text-text',
+        ghost: 'hover:bg-white/5 text-muted hover:text-text',
+      };
+      const sizes = { sm: 'px-3 py-1.5 text-sm', md: 'px-5 py-2.5 text-base', lg: 'px-8 py-3.5 text-lg', xl: 'px-10 py-4 text-xl' };
+      return <button type={type} className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} disabled={disabled} onClick={onClick}>{children}</button>;
+    };
+
+    const Input = ({ label, value, onChange, placeholder, type = 'text', maxLength, disabled = false, className = '', autoFocus = false }) => (
+      <div className={`flex flex-col gap-1.5 ${className}`}>
+        {label && <label className="text-sm font-medium text-muted">{label}</label>}
+        <input type={type} value={value} onChange={onChange} placeholder={placeholder} maxLength={maxLength} disabled={disabled} autoFocus={autoFocus}
+          className="bg-surface border border-white/10 rounded-xl px-4 py-3 text-text placeholder-muted/50 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all disabled:opacity-50" />
+      </div>
+    );
+
+    const Modal = ({ isOpen, onClose, children, title }) => {
+      if (!isOpen) return null;
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative glass-strong rounded-2xl p-6 max-w-md w-full animate-scale-in" onClick={e => e.stopPropagation()}>
+            {title && <h3 className="text-xl font-bold mb-4">{title}</h3>}
+            {children}
+            <button onClick={onClose} className="absolute top-4 right-4 text-muted hover:text-text"><Icons.X /></button>
+          </div>
+        </div>
+      );
+    };
+
+    const Avatar = ({ symbol, colorIndex, size = 'md' }) => {
+      const colorClass = getColor(colorIndex);
+      const sizeClass = size === 'lg' ? 'w-14 h-14 text-2xl' : 'w-10 h-10 text-xl';
+      return (
+        <div className={`${sizeClass} ${colorClass} rounded-full flex items-center justify-center font-bold text-white shadow-lg select-none`}>
+          {symbol}
+        </div>
+      );
+    };
+
+    const ConnectionStatus = ({ connected }) => (
+      <div className={`flex items-center gap-2 text-xs font-medium ${connected ? 'text-success' : 'text-imposter'}`}>
+        <div className={`w-2 h-2 rounded-full ${connected ? 'bg-success animate-pulse' : 'bg-imposter'}`} />
+        {connected ? 'Connected' : 'Disconnected'}
+      </div>
+    );
+
+    // ─── SCREENS ──────────────────────────────────────────────
+    const HomeScreen = ({ onCreate, onJoin }) => (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-bg to-secondary/10" />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-[100px] animate-float" />
+        <div className="absolute bottom-20 right-10 w-72 h-72 bg-secondary/20 rounded-full blur-[100px] animate-float" style={{ animationDelay: '1s' }} />
+        
+        <div className="relative z-10 text-center max-w-lg w-full animate-fade-in">
+          <div className="mb-8">
+            <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-4 bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
+              MANALO OKKADU
+            </h1>
+            <p className="text-xl md:text-2xl text-muted font-light">One of us is different.</p>
+            <p className="text-sm text-muted/60 mt-2">Find the imposter before it's too late.</p>
+          </div>
+          
+          <div className="flex flex-col gap-4">
+            <Button size="xl" onClick={onCreate} className="glow-primary"><Icons.Play /> Create Game</Button>
+            <Button size="xl" variant="outline" onClick={onJoin}><Icons.Users /> Join Game</Button>
+          </div>
+          
+          <div className="mt-12 flex items-center justify-center gap-6 text-sm text-muted">
+            <span>🎮 3-12 Players</span>
+            <span>⏱️ 1-10 Min</span>
+            <span>🔒 Private Rooms</span>
+          </div>
+        </div>
+      </div>
+    );
+
+    const CreateGameScreen = ({ onBack, onCreate, onJoinLink }) => {
+      const [name, setName] = useState('');
+      const [maxPlayers, setMaxPlayers] = useState(9);
+      const [discussionMin, setDiscussionMin] = useState(3);
+      const [votingSec, setVotingSec] = useState(60);
+      const [allowEarlyVoting, setAllowEarlyVoting] = useState(false);
+      const [allowSelfVote, setAllowSelfVote] = useState(false);
+      const [tieBehavior, setTieBehavior] = useState('imposter');
+      const [category, setCategory] = useState('Random');
+      const [roomCode, setRoomCode] = useState('');
+      const [copied, setCopied] = useState(false);
+      
+      const categories = ['Random', 'Food', 'Animals', 'Places', 'Movies', 'Sports', 'Jobs', 'Objects', 'Vehicles', 'Fruits', 'Festivals'];
+      
+      const handleCreate = () => {
+        if (!name.trim()) return;
+        onCreate({ 
+          hostName: name.trim(), 
+          maxPlayers, 
+          discussionDuration: discussionMin, 
+          votingDuration: votingSec, 
+          allowEarlyVoting, 
+          allowSelfVote, 
+          tieBehavior, 
+          category 
+        });
+      };
+
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4 md:p-6">
+          <div className="w-full max-w-lg animate-fade-in">
+            <button onClick={onBack} className="mb-6 text-muted hover:text-text flex items-center gap-2 transition-colors">
+              <Icons.X /> Back
+            </button>
+            <h2 className="text-3xl font-bold mb-1">Create Game</h2>
+            <p className="text-muted mb-8">Set up your room and invite friends.</p>
+            
+            <div className="glass rounded-2xl p-6 space-y-5">
+              <Input label="Your Name" value={name} onChange={e => setName(e.target.value)} placeholder="Enter your name" maxLength={20} />
+              
+              <div>
+                <label className="text-sm font-medium text-muted mb-2 block">Max Players</label>
+                <div className="flex flex-wrap gap-2">
+                  {[3,4,5,6,7,8,9,10,11,12].map(n => (
+                    <button key={n} onClick={() => setMaxPlayers(n)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${maxPlayers === n ? 'bg-primary text-white' : 'bg-white/5 hover:bg-white/10 text-muted'}`}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-muted mb-2 block">Discussion Time</label>
+                <div className="flex flex-wrap gap-2">
+                  {[1,2,3,5,10].map(m => (
+                    <button key={m} onClick={() => setDiscussionMin(m)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${discussionMin === m ? 'bg-primary text-white' : 'bg-white/5 hover:bg-white/10 text-muted'}`}>
+                      {m} min
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-muted mb-2 block">Voting Time</label>
+                <div className="flex flex-wrap gap-2">
+                  {[30,60,90,120].map(s => (
+                    <button key={s} onClick={() => setVotingSec(s)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${votingSec === s ? 'bg-primary text-white' : 'bg-white/5 hover:bg-white/10 text-muted'}`}>
+                      {s >= 60 ? `${s/60} min` : `${s}s`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-muted mb-2 block">Category</label>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map(cat => (
+                    <button key={cat} onClick={() => setCategory(cat)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${category === cat ? 'bg-primary text-white' : 'bg-white/5 hover:bg-white/10 text-muted'}`}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between py-2">
+                <span className="text-sm text-muted">Early Voting</span>
+                <button onClick={() => setAllowEarlyVoting(!allowEarlyVoting)} className={`w-12 h-6 rounded-full transition-all ${allowEarlyVoting ? 'bg-primary' : 'bg-white/10'}`}>
+                  <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-all ${allowEarlyVoting ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+              
+              <div className="flex items-center justify-between py-2">
+                <span className="text-sm text-muted">Allow Self-Vote</span>
+                <button onClick={() => setAllowSelfVote(!allowSelfVote)} className={`w-12 h-6 rounded-full transition-all ${allowSelfVote ? 'bg-primary' : 'bg-white/10'}`}>
+                  <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-all ${allowSelfVote ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-muted mb-2 block">Tie Behavior</label>
+                <div className="flex gap-2">
+                  <button onClick={() => setTieBehavior('imposter')} className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${tieBehavior === 'imposter' ? 'bg-primary text-white' : 'bg-white/5 hover:bg-white/10 text-muted'}`}>
+                    Imposter Wins
+                  </button>
+                  <button onClick={() => setTieBehavior('revote')} className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${tieBehavior === 'revote' ? 'bg-primary text-white' : 'bg-white/5 hover:bg-white/10 text-muted'}`}>
+                    Revote
+                  </button>
+                </div>
+              </div>
+              
+              <Button onClick={handleCreate} disabled={!name.trim()} size="lg" className="w-full">Create Room</Button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const JoinGameScreen = ({ onBack, onJoin, initialCode }) => {
+      const [code, setCode] = useState(initialCode || '');
+      const [name, setName] = useState('');
+      
+      useEffect(() => {
+        if (initialCode) setCode(initialCode.toUpperCase());
+      }, [initialCode]);
+      
+      const handleJoin = () => {
+        if (code.trim() && name.trim()) onJoin(code.trim().toUpperCase(), name.trim());
+      };
+      
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4 md:p-6">
+          <div className="w-full max-w-md animate-fade-in">
+            <button onClick={onBack} className="mb-6 text-muted hover:text-text flex items-center gap-2 transition-colors">
+              <Icons.X /> Back
+            </button>
+            <div className="glass rounded-2xl p-8 text-center">
+              <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Icons.Link />
+              </div>
+              <h2 className="text-3xl font-bold mb-2">Join Game</h2>
+              <p className="text-muted mb-8">Enter the room code and your name.</p>
+              
+              <div className="space-y-4 text-left">
+                <Input label="Room Code" value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="X7K9P" maxLength={5} autoFocus />
+                <Input label="Your Name" value={name} onChange={e => setName(e.target.value)} placeholder="Enter your name" maxLength={20} />
+              </div>
+              
+              <Button onClick={handleJoin} disabled={!code.trim() || !name.trim()} size="lg" className="w-full mt-6">Join Room</Button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const LobbyScreen = ({ room, players, currentPlayer, onStart, onLeave, onUpdateSettings, socketConnected }) => {
+      const isHost = currentPlayer?.isHost;
+      
+      const handleStart = () => {
+        if (players.length < 3) return;
+        onStart();
+      };
+      
+      const shareLink = () => {
+        const url = getJoinUrl(room.code);
+        if (navigator.share) {
+          navigator.share({ title: 'Join MANALO OKKADU', text: `Join my game! Room code: ${room.code}`, url });
+        } else {
+          navigator.clipboard.writeText(url);
+          alert('Link copied to clipboard!');
+        }
+      };
+      
+      return (
+        <div className="min-h-screen flex flex-col">
+          <header className="glass border-b border-white/5 sticky top-0 z-30">
+            <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold">MANALO OKKADU</h1>
+                <p className="text-xs text-muted">Room: <span className="font-mono text-primary">{room.code}</span></p>
+              </div>
+              <ConnectionStatus connected={socketConnected} />
+            </div>
+          </header>
+          
+          <main className="flex-1 max-w-6xl mx-auto w-full p-4 md:p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left: Players */}
+              <div className="lg:col-span-2">
+                <div className="glass rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold">Players ({players.length}/{room.maxPlayers})</h2>
+                    {isHost && (
+                      <div className="flex gap-2">
+                        <button onClick={shareLink} className="text-sm text-muted hover:text-text flex items-center gap-1 transition-colors">
+                          <Icons.Share /> Share
+                        </button>
+                        <button onClick={() => { navigator.clipboard.writeText(room.code); alert('Code copied!'); }} className="text-sm text-muted hover:text-text flex items-center gap-1 transition-colors">
+                          <Icons.Copy /> Copy Code
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {players.map((player, idx) => (
+                      <div key={player.id} className={`glass rounded-xl p-4 flex flex-col items-center gap-3 transition-all ${!player.isConnected ? 'opacity-50' : ''}`}>
+                        <Avatar symbol={player.symbol} colorIndex={idx} size="lg" />
+                        <div className="text-center">
+                          <p className="font-semibold text-sm truncate max-w-full">{player.name}</p>
+                          <div className="flex items-center gap-1 justify-center mt-1">
+                            {player.isHost && <span className="text-xs bg-warning/20 text-warning px-2 py-0.5 rounded-full">HOST</span>}
+                            {!player.isConnected && <span className="text-xs bg-imposter/20 text-imposter px-2 py-0.5 rounded-full">OFFLINE</span>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {Array.from({ length: room.maxPlayers - players.length }).map((_, i) => (
+                      <div key={`empty-${i}`} className="glass rounded-xl p-4 flex flex-col items-center justify-center border-dashed border-2 border-white/5 min-h-[100px]">
+                        <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-muted/30 text-2xl">+</div>
+                        <p className="text-xs text-muted/50 mt-2">Waiting...</p>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {isHost ? (
+                    <div className="mt-8 flex flex-col sm:flex-row gap-4">
+                      <Button onClick={handleStart} disabled={players.length < 3} size="lg" className="flex-1 glow-primary">
+                        <Icons.Play /> Start Game ({players.length}/3)
+                      </Button>
+                      <Button onClick={onLeave} variant="outline" size="lg">Leave Room</Button>
+                    </div>
+                  ) : (
+                    <div className="mt-8">
+                      <Button onClick={onLeave} variant="outline" size="lg" className="w-full">Leave Room</Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Right: Settings (host only) */}
+              {isHost && (
+                <div className="lg:col-span-1">
+                  <div className="glass rounded-2xl p-6">
+                    <h3 className="text-lg font-bold mb-4">Room Settings</h3>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between"><span className="text-muted">Players</span><span className="font-medium">{room.maxPlayers}</span></div>
+                      <div className="flex justify-between"><span className="text-muted">Discussion</span><span className="font-medium">{room.discussionDuration} min</span></div>
+                      <div className="flex justify-between"><span className="text-muted">Voting</span><span className="font-medium">{room.votingDuration}s</span></div>
+                      <div className="flex justify-between"><span className="text-muted">Early Voting</span><span className="font-medium">{room.allowEarlyVoting ? 'On' : 'Off'}</span></div>
+                      <div className="flex justify-between"><span className="text-muted">Self-Vote</span><span className="font-medium">{room.allowSelfVote ? 'Allowed' : 'Blocked'}</span></div>
+                      <div className="flex justify-between"><span className="text-muted">Tie</span><span className="font-medium">{room.tieBehavior === 'imposter' ? 'Imposter wins' : 'Revote'}</span></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </main>
+        </div>
+      );
+    };
+
+    const WordRevealScreen = ({ word, category, onReady, readyCount, totalPlayers, currentPlayer }) => {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="max-w-md w-full text-center animate-fade-in">
+            <div className="glass-strong rounded-3xl p-8 md:p-12 glow-primary relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent" />
+              <div className="relative z-10">
+                <p className="text-sm uppercase tracking-widest text-primary mb-4 font-semibold">Your Secret Word</p>
+                <p className="text-xs text-muted mb-6">{category}</p>
+                
+                <div className="bg-bg/50 rounded-2xl p-6 mb-8 border border-white/5">
+                  <h2 className="text-4xl md:text-5xl font-black text-text animate-reveal">{word}</h2>
+                </div>
+                
+                <p className="text-sm text-muted mb-8 leading-relaxed">
+                  Don't say this word. Describe it carefully without revealing it. Only you should see this screen.
+                </p>
+                
+                <Button onClick={onReady} size="lg" className="w-full">I Understand</Button>
+                
+                {readyCount < totalPlayers && (
+                  <p className="text-xs text-muted mt-4">Waiting for players... ({readyCount}/{totalPlayers})</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const DiscussionScreen = ({ room, players, currentPlayer, chatMessages, timer, onSendChat, onVoteStart, hintRound, turnPlayer, isMyTurn }) => {
+      const [message, setMessage] = useState('');
+      const chatEndRef = useRef(null);
+      
+      useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, [chatMessages]);
+      
+      const handleSend = () => {
+        if (!message.trim()) return;
+        onSendChat(message.trim());
+        setMessage('');
+      };
+      
+      return (
+        <div className="min-h-screen flex flex-col lg:flex-row">
+          {/* Game Area */}
+          <div className="flex-1 flex flex-col p-4 md:p-6">
+            <div className="glass rounded-2xl p-6 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold">Discussion</h2>
+                  <p className="text-sm text-muted">Who has a different word?</p>
+                </div>
+                <div className="text-right">
+                  <div className={`text-3xl font-mono font-bold ${timer.remaining <= 30 ? 'text-imposter animate-pulse' : 'text-text'}`}>
+                    {formatTime(timer.remaining)}
+                  </div>
+                  <p className="text-xs text-muted">{timer.total}s total</p>
+                </div>
+              </div>
+              
+              {hintRound && (
+                <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 mb-4">
+                  <p className="text-sm text-warning font-medium mb-1">Hint Round</p>
+                  <p className="text-sm text-text">{isMyTurn ? 'It\'s your turn to give a one-line hint!' : `Waiting for ${turnPlayer?.name}...`}</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Players Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
+              {players.map((player, idx) => (
+                <div key={player.id} className={`glass rounded-xl p-3 flex items-center gap-3 ${!player.isConnected ? 'opacity-40' : ''}`}>
+                  <Avatar symbol={player.symbol} colorIndex={idx} />
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{player.name}</p>
+                    {player.isHost && <span className="text-[10px] text-warning">HOST</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex-1" />
+            
+            {room.allowEarlyVoting && (
+              <div className="mt-4">
+                <Button onClick={onVoteStart} variant="secondary" className="w-full">Start Voting Early</Button>
+              </div>
+            )}
+          </div>
+          
+          {/* Chat Sidebar */}
+          <div className="lg:w-96 glass border-t lg:border-t-0 lg:border-l border-white/5 flex flex-col h-[400px] lg:h-auto">
+            <div className="p-4 border-b border-white/5">
+              <h3 className="font-bold flex items-center gap-2"><Icons.Message /> Chat</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 chat-scroll">
+              {chatMessages.map((msg, i) => (
+                <div key={i} className="animate-fade-in">
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="text-xs font-bold text-primary">{msg.playerName}</span>
+                    <span className="text-[10px] text-muted">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                  <p className="text-sm text-text/90 bg-white/5 rounded-lg px-3 py-2">{msg.message}</p>
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
+            <div className="p-3 border-t border-white/5">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={message}
+                  onChange={e => setMessage(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSend()}
+                  placeholder="Type a message..."
+                  maxLength={500}
+                  className="flex-1 bg-surface border border-white/10 rounded-xl px-4 py-2.5 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-primary/50"
+                />
+                <Button onClick={handleSend} disabled={!message.trim()} size="sm"><Icons.Send /></Button>
+              </div>
+              <p className="text-[10px] text-muted mt-1">Don't use your secret word!</p>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const VotingScreen = ({ players, currentPlayer, votes, voteCounts, onSubmitVote, hasVoted, selfVoteAllowed }) => {
+      const [selected, setSelected] = useState(null);
+      
+      const handleVote = () => {
+        if (!selected) return;
+        onSubmitVote(selected);
+      };
+      
+      const sortedPlayers = useMemo(() => {
+        return [...players].sort((a, b) => (voteCounts[b.id] || 0) - (voteCounts[a.id] || 0));
+      }, [players, voteCounts]);
+      
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-4 md:p-6">
+          <div className="max-w-2xl w-full">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl md:text-4xl font-black mb-2">WHO HAS THE DIFFERENT WORD?</h2>
+              <p className="text-muted">Vote for the player who doesn't belong.</p>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+              {players.map((player, idx) => {
+                const isSelected = selected === player.id;
+                const voteCount = voteCounts[player.id] || 0;
+                const isSelf = player.id === currentPlayer.id;
+                const canVoteSelf = selfVoteAllowed;
+                const disabled = (isSelf && !canVoteSelf) || hasVoted;
+                
+                return (
+                  <button
+                    key={player.id}
+                    onClick={() => !disabled && setSelected(player.id)}
+                    disabled={disabled}
+                    className={`glass rounded-2xl p-5 flex flex-col items-center gap-3 transition-all duration-300 relative ${isSelected ? 'ring-2 ring-primary glow-primary scale-105' : ''} ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-white/5'}`}
+                  >
+                    <Avatar symbol={player.symbol} colorIndex={idx} />
+                    <p className="font-semibold text-sm">{player.name}</p>
+                    {voteCount > 0 && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">{voteCount} vote{voteCount > 1 ? 's' : ''}</span>}
+                    {isSelected && <div className="absolute top-2 right-2 text-primary"><Icons.Check /></div>}
+                    {isSelf && !canVoteSelf && <span className="absolute bottom-2 text-[10px] text-muted">(You)</span>}
+                  </button>
+                );
+              })}
+            </div>
+            
+            {!hasVoted ? (
+              <Button onClick={handleVote} disabled={!selected} size="lg" className="w-full max-w-md mx-auto block">
+                Confirm Vote
+              </Button>
+            ) : (
+              <div className="text-center">
+                <p className="text-success font-medium mb-2">Vote submitted.</p>
+                <p className="text-sm text-muted">{Object.keys(votes).length}/{players.length} players have voted.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const ResultScreen = ({ imposterId, suspectId, votes, voteCounts, commonWord, imposterWord, players, winner, onPlayAgain, onLeave }) => {
+      const imposter = players.find(p => p.id === imposterId);
+      const suspect = players.find(p => p.id === suspectId);
+      const isCorrect = imposterId === suspectId;
+      
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4 md:p-6">
+          <div className="max-w-lg w-full text-center">
+            <div className={`glass-strong rounded-3xl p-8 md:p-12 relative overflow-hidden ${isCorrect ? 'glow-success' : 'glow-imposter'}`}>
+              <div className={`absolute inset-0 ${isCorrect ? 'bg-gradient-to-br from-success/10 to-transparent' : 'bg-gradient-to-br from-imposter/10 to-transparent'}`} />
+              
+              <div className="relative z-10">
+                <div className="mb-6">
+                  {isCorrect ? (
+                    <div className="text-6xl mb-4 animate-float">🎉</div>
+                  ) : (
+                    <div className="text-6xl mb-4 animate-float">💀</div>
+                  )}
+                  <h2 className={`text-3xl md:text-4xl font-black mb-2 ${isCorrect ? 'text-success' : 'text-imposter'}`}>
+                    {isCorrect ? 'PLAYERS WIN!' : 'IMPOSTER WINS!'}
+                  </h2>
+                  <p className="text-muted">
+                    {isCorrect ? 'You found the different one.' : 'The group failed to find the different one.'}
+                  </p>
+                </div>
+                
+                <div className="bg-bg/50 rounded-2xl p-6 mb-6 border border-white/5">
+                  <div className="flex items-center justify-center gap-4 mb-4">
+                    <div className="text-center">
+                      <p className="text-xs text-muted mb-1">Everyone had</p>
+                      <p className="text-2xl font-bold text-primary">{commonWord}</p>
+                    </div>
+                    <div className="text-2xl text-muted">vs</div>
+                    <div className="text-center">
+                      <p className="text-xs text-muted mb-1">{imposter?.name} had</p>
+                      <p className="text-2xl font-bold text-imposter">{imposterWord}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t border-white/5 pt-4">
+                    <p className="text-sm text-muted mb-2">Vote Results</p>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {players.map((p, idx) => {
+                        const count = voteCounts[p.id] || 0;
+                        const isImposter = p.id === imposterId;
+                        const isSuspect = p.id === suspectId;
+                        return (
+                          <div key={p.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${isImposter ? 'bg-imposter/20 text-imposter' : isSuspect ? 'bg-warning/20 text-warning' : 'bg-white/5'}`}>
+                            <span>{p.name}</span>
+                            <span className="font-bold">{count}</span>
+                            {isImposter && <span className="text-xs">(IMPOSTER)</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex gap-3">
+                  <Button onClick={onPlayAgain} className="flex-1">Play Again</Button>
+                  <Button onClick={onLeave} variant="outline" className="flex-1">Leave</Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const ErrorScreen = ({ error, onRetry, onBack }) => (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="max-w-md w-full text-center glass rounded-2xl p-8 animate-fade-in">
+          <div className="text-6xl mb-4">😕</div>
+          <h2 className="text-2xl font-bold mb-2">Something went wrong</h2>
+          <p className="text-muted mb-6">{error}</p>
+          <div className="flex gap-3">
+            <Button onClick={onRetry} className="flex-1">Retry</Button>
+            <Button onClick={onBack} variant="outline" className="flex-1">Back to Home</Button>
+          </div>
+        </div>
+      </div>
+    );
+
+    // ─── MAIN APP ─────────────────────────────────────────────
+    function App() {
+      const [phase, setPhase] = useState('HOME');
+      const [room, setRoom] = useState(null);
+      const [players, setPlayers] = useState([]);
+      const [currentPlayer, setCurrentPlayer] = useState(null);
+      const [game, setGame] = useState(null);
+      const [chatMessages, setChatMessages] = useState([]);
+      const [votes, setVotes] = useState({});
+      const [voteCounts, setVoteCounts] = useState({});
+      const [timer, setTimer] = useState({ remaining: 0, total: 0 });
+      const [error, setError] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [secretWord, setSecretWord] = useState(null);
+      const [readyCount, setReadyCount] = useState(0);
+      const [hintRound, setHintRound] = useState(false);
+      const [turnPlayer, setTurnPlayer] = useState(null);
+      const [socketConnected, setSocketConnected] = useState(false);
+      const socketRef = useRef(null);
+
+      // Initialize Socket
+      useEffect(() => {
+        const socketUrl = window.location.origin;
+        const socket = io(socketUrl, {
+          transports: ['websocket', 'polling'],
+          withCredentials: true,
+        });
+        socketRef.current = socket;
+        
+        socket.on('connect', () => { setSocketConnected(true); setError(null); });
+        socket.on('disconnect', () => setSocketConnected(false));
+        socket.on('connect_error', () => setSocketConnected(false));
+        
+        // Room events
+        socket.on('room:created', (data) => {
+          setRoom(data.room);
+          setPlayers(data.players);
+          setCurrentPlayer(data.currentPlayer);
+          setPhase('LOBBY');
+        });
+        
+        socket.on('room:joined', (data) => {
+          setRoom(data.room);
+          setPlayers(data.players);
+          setCurrentPlayer(data.currentPlayer);
+          setPhase('LOBBY');
+        });
+        
+        socket.on('room:updated', (data) => {
+          setPlayers(data.players);
+          if (data.room) setRoom(data.room);
+        });
+        
+        socket.on('player:disconnected', (data) => {
+          setPlayers(prev => prev.map(p => p.id === data.playerId ? { ...p, isConnected: false } : p));
+        });
+        
+        socket.on('player:reconnected', (data) => {
+          setPlayers(prev => prev.map(p => p.id === data.playerId ? { ...p, isConnected: true } : p));
+        });
+        
+        socket.on('game:started', (data) => {
+          setGame(data.game);
+          setPhase('WORD_REVEAL');
+          setReadyCount(0);
+        });
+        
+        socket.on('game:word', (data) => {
+          setSecretWord(data.word);
+          setPhase('WORD_REVEAL');
+        });
+        
+        socket.on('game:readyUpdate', (data) => {
+          setReadyCount(data.count);
+        });
+        
+        socket.on('game:discussion', (data) => {
+          setGame(prev => ({ ...prev, status: 'DISCUSSION' }));
+          setTimer({ remaining: data.timer, total: data.timer });
+          setHintRound(data.hintRound || false);
+          setTurnPlayer(data.turnPlayer || null);
+          setChatMessages([]);
+          setVotes({});
+          setVoteCounts({});
+          setPhase('DISCUSSION');
+        });
+        
+        socket.on('game:timer', (data) => {
+          setTimer(prev => ({ ...prev, remaining: data.remaining }));
+        });
+        
+        socket.on('game:vote', (data) => {
+          setGame(prev => ({ ...prev, status: 'VOTING' }));
+          setVotes({});
+          setVoteCounts({});
+          setPhase('VOTING');
+        });
+        
+        socket.on('vote:update', (data) => {
+          setVoteCounts(data.counts);
+        });
+        
+        socket.on('game:result', (data) => {
+          setGame(prev => ({ ...prev, status: 'FINISHED' }));
+          setPhase('RESULT');
+          setSecretWord(null);
+        });
+        
+        socket.on('chat:new', (data) => {
+          setChatMessages(prev => [...prev, data]);
+        });
+        
+        socket.on('error', (data) => {
+          setError(data.message);
+        });
+        
+        socket.on('room:notFound', () => setError('Room not found'));
+        socket.on('room:full', () => setError('Room is full'));
+        socket.on('room:alreadyStarted', () => setError('Game already started'));
+        socket.on('name:duplicate', () => setError('Name already taken'));
+        socket.on('room:invalid', () => setError('Invalid room code'));
+        
+        return () => socket.close();
+      }, []);
+
+      // URL parsing on mount
+      useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const pathCode = window.location.pathname.match(/\/join\/([A-Z0-9]+)/i)?.[1];
+        const code = params.get('code') || pathCode;
+        if (code) {
+          setPhase('JOIN');
+          window.history.replaceState({}, '', '/');
+        }
+      }, []);
+
+      const handleCreateRoom = (settings) => {
+        setLoading(true);
+        socketRef.current.emit('room:create', settings);
+      };
+
+      const handleJoinRoom = (code, name) => {
+        setLoading(true);
+        socketRef.current.emit('room:join', { code, name });
+      };
+
+      const handleStartGame = () => {
+        socketRef.current.emit('game:start');
+      };
+
+      const handleReady = () => {
+        socketRef.current.emit('game:ready');
+      };
+
+      const handleSendChat = (msg) => {
+        socketRef.current.emit('chat:send', { message: msg });
+      };
+
+      const handleStartVote = () => {
+        socketRef.current.emit('vote:start');
+      };
+
+      const handleVote = (targetId) => {
+        socketRef.current.emit('vote:submit', { targetId });
+      };
+
+      const handlePlayAgain = () => {
+        socketRef.current.emit('game:restart');
+      };
+
+      const handleLeave = () => {
+        socketRef.current.emit('room:leave');
+        setRoom(null);
+        setPlayers([]);
+        setCurrentPlayer(null);
+        setPhase('HOME');
+      };
+
+      const retryLastAction = () => {
+        setError(null);
+        // Re-attempt based on current phase or state
+        if (phase === 'LOBBY' && currentPlayer?.isHost) handleStartGame();
+      };
+
+      if (error) {
+        return <ErrorScreen error={error} onRetry={retryLastAction} onBack={() => { setError(null); setPhase('HOME'); }} />;
+      }
+
+      if (phase === 'HOME') return <HomeScreen onCreate={() => setPhase('CREATE')} onJoin={() => setPhase('JOIN')} />;
+      if (phase === 'CREATE') return <CreateGameScreen onBack={() => setPhase('HOME')} onCreate={handleCreateRoom} />;
+      if (phase === 'JOIN') return <JoinGameScreen onBack={() => setPhase('HOME')} onJoin={handleJoinRoom} initialCode={room?.code || ''} />;
+      
+      if (phase === 'LOBBY' && room) {
+        return <LobbyScreen 
+          room={room} 
+          players={players} 
+          currentPlayer={currentPlayer} 
+          onStart={handleStartGame} 
+          onLeave={handleLeave}
+          socketConnected={socketConnected}
+        />;
+      }
+      
+      if (phase === 'WORD_REVEAL' && secretWord) {
+        return <WordRevealScreen 
+          word={secretWord} 
+          category={game?.wordPair?.category || 'Secret'} 
+          onReady={handleReady}
+          readyCount={readyCount}
+          totalPlayers={players.length}
+          currentPlayer={currentPlayer}
+        />;
+      }
+      
+      if (phase === 'DISCUSSION') {
+        return <DiscussionScreen 
+          room={room}
+          players={players}
+          currentPlayer={currentPlayer}
+          chatMessages={chatMessages}
+          timer={timer}
+          onSendChat={handleSendChat}
+          onVoteStart={handleStartVote}
+          hintRound={hintRound}
+          turnPlayer={turnPlayer}
+          isMyTurn={turnPlayer?.id === currentPlayer?.id}
+        />;
+      }
+      
+      if (phase === 'VOTING') {
+        return <VotingScreen 
+          players={players}
+          currentPlayer={currentPlayer}
+          votes={votes}
+          voteCounts={voteCounts}
+          onSubmitVote={handleVote}
+          hasVoted={!!votes[currentPlayer?.id]}
+          selfVoteAllowed={room?.allowSelfVote}
+        />;
+      }
+      
+      if (phase === 'RESULT' && game) {
+        return <ResultScreen 
+          imposterId={game.imposterPlayerId}
+          suspectId={game.suspectPlayerId}
+          votes={votes}
+          voteCounts={voteCounts}
+          commonWord={game.wordPair?.commonWord}
+          imposterWord={game.wordPair?.imposterWord}
+          players={players}
+          winner={game.winner}
+          onPlayAgain={handlePlayAgain}
+          onLeave={handleLeave}
+        />;
+      }
+      
+      return <div className="min-h-screen flex items-center justify-center"><div className="text-muted">Loading...</div></div>;
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
